@@ -76,7 +76,12 @@ public class PatientRepository : IPatientRepository
 
     public async Task<PatientGetDto?> GetByIdAsync(int patientId)
     {
-        var patient = await _context.Set<Patient>().Include(x => x.District).FirstOrDefaultAsync(x => x.Id == patientId);
+        var patient = await GetPatientByIdAsync(patientId);
+        
+        if (patient is null)
+        {
+            throw new NullReferenceException("Patient not found");
+        }
 
         return new PatientGetDto
         {
@@ -228,7 +233,11 @@ public class PatientRepository : IPatientRepository
     
     private async Task<Patient?> GetPatientByIdAsync(int patientId)
     {
-        return await _context.Set<Patient>().Include(x => x.District).FirstOrDefaultAsync(x => x.Id == patientId);
+        return await _context.Set<Patient>()
+            .Where(x => x.Id == patientId)
+            .Include(x => x.District)
+            .AsQueryable()
+            .FirstOrDefaultAsync();
     }
     private string BuildFio(string surname, string name, string middleName) => $"{surname} {name} {middleName}";
 }

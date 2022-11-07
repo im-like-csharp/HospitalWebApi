@@ -49,9 +49,20 @@ public class PatientController : Controller
     }
 
     [HttpGet("patientId")]
-    public async Task<PatientGetDto?> GetByIdAsync(int patientId)
+    public async Task<ActionResult<PatientGetDto?>> GetByIdAsync(int patientId)
     {
-        return await _patientRepository.GetByIdAsync(patientId);
+        PatientGetDto patientGetDto;
+        
+        try
+        {
+            patientGetDto = await _patientRepository.GetByIdAsync(patientId);
+        }
+        catch (NullReferenceException exception)
+        {
+            return NotFound(exception.Message);
+        }
+
+        return patientGetDto;
     }
     
     [HttpPost]

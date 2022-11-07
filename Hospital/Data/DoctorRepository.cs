@@ -2,6 +2,7 @@
 using Hospital.Models;
 using Hospital.DTOs;
 using Hospital.Requests;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hospital.Data;
@@ -17,7 +18,7 @@ public class DoctorRepository : IDoctorRepository
 
     public async Task<IEnumerable<DoctorGetDto>> GetSortedByPropertyAsync(string? property, int? pageNumber, int? pageSize)
     {
-        var doctors = await GetSortedByPropertyAsync(property);
+        var doctors = await GetSortedByPropertyAsync(property ?? "DoctorId");
         
         return TakePage(doctors, pageNumber, pageSize);
     }
@@ -31,13 +32,11 @@ public class DoctorRepository : IDoctorRepository
             return doctors;
         }
 
-        PropertyDescriptor prop = TypeDescriptor.GetProperties(typeof(DoctorGetDto)).Find((string)property, true);
-
-        if (prop is not null)
-        {
-            doctors = doctors.OrderBy(x => prop.GetValue(x));
-        }
-
+        PropertyDescriptor prop = TypeDescriptor.GetProperties(typeof(DoctorGetDto)).Find((string)property, true)
+                                  ?? TypeDescriptor.GetProperties(typeof(DoctorGetDto)).Find((string)"DoctorId", true)!;
+        
+        doctors = doctors.OrderBy(x => prop.GetValue(x));
+        
         return doctors;
     }
 
@@ -58,15 +57,20 @@ public class DoctorRepository : IDoctorRepository
             {
                 DoctorId = x.Id,
                 Fio = x.Fio,
-                Cabinet = x.Cabinet.Number,
-                Specialization = x.Specialization.Name,
-                District = x.District.Number
+                Cabinet = x.Cabinet!.Number,
+                Specialization = x.Specialization!.Name,
+                District = x.District!.Number
             }).ToListAsync();
     }
     
     public async Task<DoctorGetDto?> GetByIdAsync(int doctorId)
     {
         var doctor = await GetDoctorByIdAsync(doctorId);
+        
+        if (doctor is null)
+        {
+            throw new NullReferenceException("Doctor not found");
+        }
 
         return new DoctorGetDto
         {
@@ -211,9 +215,11 @@ public class DoctorRepository : IDoctorRepository
     private async Task<Doctor?> GetDoctorByIdAsync(int doctorId)
     {
         return await _context.Set<Doctor>()
+            .Where(x => x.Id == doctorId)
             .Include(x => x.Cabinet)
             .Include(x => x.Specialization)
             .Include(x => x.District)
-            .FirstOrDefaultAsync(x => x.Id == doctorId);
+            .AsQueryable()
+            .FirstOrDefaultAsync();
     }
 }
