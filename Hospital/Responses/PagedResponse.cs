@@ -1,16 +1,14 @@
 ﻿namespace Hospital.Responses;
 
-public class PagedResponse<T>
+public class PagedResponse<T> : Response<T>
 {
-    public PagedResponse(T response, int? pageNumber, int? pageSize)
+    public PagedResponse(T data, int? pageNumber, int? pageSize) : base(data)
     {
-        Data = response;
         PageNumber = pageNumber;
         PageSize = pageSize;
     }
 
-    public T Data { get; set; }
+    public int? PageNumber { get; }
 
-    public int? PageNumber { get; set; }
-    public int? PageSize { get; set; }
+    public int? PageSize { get; }
 }

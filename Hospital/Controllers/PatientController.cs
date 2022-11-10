@@ -21,7 +21,7 @@ public class PatientController : Controller
     [HttpGet("sortby/{property}&{pageNumber}&{pageSize}")]
     public async Task<ActionResult> GetSortByAsync(string? property, int? pageNumber, int? pageSize)
     {
-        var patients = await _patientRepository.GetSortedByPropertyAsync(property, pageNumber, pageSize);
+        var patients = await _patientRepository.GetSortedByPropertyPagedAsync(property, pageNumber, pageSize);
 
         return Ok(patients);
     }
@@ -51,7 +51,7 @@ public class PatientController : Controller
     [HttpGet("patientId")]
     public async Task<ActionResult<PatientGetDto?>> GetByIdAsync(int patientId)
     {
-        PatientGetDto patientGetDto;
+        PatientGetDto? patientGetDto;
         
         try
         {

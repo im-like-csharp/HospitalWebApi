@@ -1,9 +1,9 @@
 using System.ComponentModel;
 using Hospital.DTOs;
+using Hospital.Extensions;
 using Hospital.Models;
 using Hospital.Requests;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Hospital.Data;
 
@@ -16,51 +16,35 @@ public class PatientRepository : IPatientRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<PatientGetDto>> GetSortedByPropertyAsync(string? property, int? pageNumber, int? pageSize)
+    public async Task<IEnumerable<PatientGetDto>> GetSortedByPropertyPagedAsync(string? property, int? pageNumber, int? pageSize)
     {
-        var patients = await GetSortedByPropertyAsync(property);
-        return TakePage(patients, pageNumber, pageSize);
+        return (await GetSortedByPropertyAsync(property))
+            .AsQueryable()
+            .TakePage(pageNumber, pageSize);
     }
 
-    public async Task<IEnumerable<PatientGetDto>> GetSortedByPropertyAsync(string property)
+    public async Task<IEnumerable<PatientGetDto>> GetSortedByPropertyAsync(string? property)
     {
-        var patients = await GetListAsync();
+        var patients = (await GetListAsync()).AsQueryable();
 
         if (string.IsNullOrWhiteSpace(property))
         {
             return patients;
         }
 
-        PropertyDescriptor prop = TypeDescriptor.GetProperties(typeof(DoctorGetDto)).Find((string)property, true);
-
-        if (prop is not null)
-        {
-            patients = patients.OrderBy(x => prop.GetValue(x));
-        }
+        PropertyDescriptor prop = TypeDescriptor.GetProperties(typeof(PatientGetDto)).Find(property, true)
+                                  ?? TypeDescriptor.GetProperties(typeof(PatientGetDto)).Find("PatientId", true)!;
+        
+        patients = patients.OrderBy(x => prop.GetValue(x));
 
         return patients;
     }
 
     public async Task<IEnumerable<PatientGetDto>> GetPagedListAsync(int? pageNumber, int? pageSize)
     {
-        var patients = await GetListAsync();
-        
-        if (pageNumber is null || pageNumber < 1)
-        {
-            pageNumber = 1;
-        }
-
-        if (pageSize is null || pageSize < 1)
-        {
-            pageSize = 100;
-        }
-
-        return patients.Skip(((int)pageNumber - 1) * (int)pageSize).Take((int)pageSize);
-    }
-
-    public async Task<IEnumerable<PatientGetDto>> GetListAsync()
-    {
         return await _context.Set<Patient>()
+            .AsQueryable()
+            .TakePage(pageNumber, pageSize)
             .Include(x => x.District)
             .Select(x => new PatientGetDto
             {
@@ -70,7 +54,24 @@ public class PatientRepository : IPatientRepository
                 Address = x.Address,
                 BirthDate = x.BirthDate,
                 Gender = x.Gender,
-                District = x.District.Number
+                District = x.District!.Number
+            }).ToListAsync();
+    }
+
+    public async Task<IEnumerable<PatientGetDto>> GetListAsync()
+    {
+        return await _context.Set<Patient>()
+            .AsQueryable()
+            .Include(x => x.District)
+            .Select(x => new PatientGetDto
+            {
+                Surname = x.Surname,
+                Name = x.Name,
+                MiddleName = x.MiddleName,
+                Address = x.Address,
+                BirthDate = x.BirthDate,
+                Gender = x.Gender,
+                District = x.District!.Number
             }).ToListAsync();
     }
 
@@ -91,7 +92,7 @@ public class PatientRepository : IPatientRepository
             Address = patient.Address,
             BirthDate = patient.BirthDate,
             Gender = patient.Gender,
-            District = patient.District.Number
+            District = patient.District!.Number
         };
     }
 
@@ -110,7 +111,7 @@ public class PatientRepository : IPatientRepository
             };
         }
 
-        var patient = await _context.Patients.AddAsync(new Patient
+        var patient = await _context.Set<Patient>().AddAsync(new Patient
         {
             Surname = request.Surname,
             Name = request.Name,
@@ -216,28 +217,14 @@ public class PatientRepository : IPatientRepository
         };
     }
 
-    private IEnumerable<PatientGetDto> TakePage(IEnumerable<PatientGetDto> patients, int? pageNumber, int? pageSize)
-    {
-        if (pageNumber is null || pageNumber < 1)
-        {
-            pageNumber = 1;
-        }
-
-        if (pageSize is null || pageSize < 1)
-        {
-            pageSize = 100;
-        }
-
-        return patients.Skip(((int)pageNumber - 1) * (int)pageSize).Take((int)pageSize);
-    }
-    
     private async Task<Patient?> GetPatientByIdAsync(int patientId)
     {
         return await _context.Set<Patient>()
+            .AsQueryable()
             .Where(x => x.Id == patientId)
             .Include(x => x.District)
-            .AsQueryable()
             .FirstOrDefaultAsync();
     }
+
     private string BuildFio(string surname, string name, string middleName) => $"{surname} {name} {middleName}";
 }

@@ -4,6 +4,7 @@ using Hospital.DTOs;
 using Hospital.Requests;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using static Hospital.Extensions.QueryableExtensions;
 
 namespace Hospital.Data;
 
@@ -16,16 +17,16 @@ public class DoctorRepository : IDoctorRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<DoctorGetDto>> GetSortedByPropertyAsync(string? property, int? pageNumber, int? pageSize)
+    public async Task<IEnumerable<DoctorGetDto>> GetSortedByPropertyPagedAsync(string? property, int? pageNumber, int? pageSize)
     {
-        var doctors = await GetSortedByPropertyAsync(property ?? "DoctorId");
-        
-        return TakePage(doctors, pageNumber, pageSize);
+        return (await GetSortedByPropertyAsync(property))
+            .AsQueryable()
+            .TakePage(pageNumber, pageSize);
     }
 
-    public async Task<IEnumerable<DoctorGetDto>> GetSortedByPropertyAsync(string property)
+    public async Task<IEnumerable<DoctorGetDto>> GetSortedByPropertyAsync(string? property)
     {
-        var doctors = await GetListAsync();
+        var doctors = (await GetListAsync()).AsQueryable();
 
         if (string.IsNullOrWhiteSpace(property))
         {
@@ -42,9 +43,20 @@ public class DoctorRepository : IDoctorRepository
 
     public async Task<IEnumerable<DoctorGetDto>> GetPagedListAsync(int? pageNumber, int? pageSize)
     {
-        var doctors = await GetListAsync();
-
-        return TakePage(doctors, pageNumber, pageSize);
+        return await _context.Set<Doctor>()
+            .AsQueryable()
+            .TakePage(pageNumber, pageSize)
+            .Include(x => x.Cabinet)
+            .Include(x => x.Specialization)
+            .Include(x => x.District)
+            .Select(x => new DoctorGetDto
+            {
+                DoctorId = x.Id,
+                Fio = x.Fio,
+                Cabinet = x.Cabinet!.Number,
+                Specialization = x.Specialization!.Name,
+                District = x.District!.Number
+            }).ToListAsync();
     }
 
     public async Task<IEnumerable<DoctorGetDto>> GetListAsync()
@@ -76,8 +88,8 @@ public class DoctorRepository : IDoctorRepository
         {
             DoctorId = doctor.Id,
             Fio = doctor.Fio,
-            Cabinet = doctor.Cabinet.Number,
-            Specialization = doctor.Specialization.Name,
+            Cabinet = doctor.Cabinet!.Number,
+            Specialization = doctor.Specialization!.Name,
             District = doctor.District.Number
         };
     }
@@ -97,7 +109,7 @@ public class DoctorRepository : IDoctorRepository
             };
         }
 
-        var doctor = await _context.Doctors.AddAsync(new Doctor
+        var doctor = await _context.Set<Doctor>().AddAsync(new Doctor
         {
             Fio = request.Fio,
             CabinetId = request.CabinetId,
@@ -197,29 +209,14 @@ public class DoctorRepository : IDoctorRepository
         };
     }
 
-    private IEnumerable<DoctorGetDto> TakePage(IEnumerable<DoctorGetDto> doctors, int? pageNumber, int? pageSize)
-    {
-        if (pageNumber is null || pageNumber < 1)
-        {
-            pageNumber = 1;
-        }
-
-        if (pageSize is null || pageSize < 1)
-        {
-            pageSize = 100;
-        }
-
-        return doctors.Skip(((int)pageNumber - 1) * (int)pageSize).Take((int)pageSize);
-    }
-
     private async Task<Doctor?> GetDoctorByIdAsync(int doctorId)
     {
         return await _context.Set<Doctor>()
+            .AsQueryable()
             .Where(x => x.Id == doctorId)
             .Include(x => x.Cabinet)
             .Include(x => x.Specialization)
             .Include(x => x.District)
-            .AsQueryable()
             .FirstOrDefaultAsync();
     }
 }

@@ -6,7 +6,7 @@ namespace Hospital.Data;
 
 public interface IPatientRepository
 {
-    Task<IEnumerable<PatientGetDto>> GetSortedByPropertyAsync(string? property, int? pageNumber, int? pageSize);
+    Task<IEnumerable<PatientGetDto>> GetSortedByPropertyPagedAsync(string? property, int? pageNumber, int? pageSize);
     Task<IEnumerable<PatientGetDto>> GetSortedByPropertyAsync(string property); 
     Task<IEnumerable<PatientGetDto>> GetPagedListAsync(int? pageNumber, int? pageSize);
     Task<IEnumerable<PatientGetDto>> GetListAsync();

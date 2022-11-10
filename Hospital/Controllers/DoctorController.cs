@@ -18,15 +18,15 @@ public class DoctorController : Controller
     }
 
     [HttpGet("sortby/{property}&{pageNumber}&{pageSize}")]
-    public async Task<ActionResult> GetSortByAsync(string? property, int? pageNumber, int? pageSize)
+    public async Task<ActionResult> GetSortedByPagedAsync(string? property, int? pageNumber, int? pageSize)
     {
-        var doctors = await _doctorRepository.GetSortedByPropertyAsync(property, pageNumber, pageSize);
+        var doctors = await _doctorRepository.GetSortedByPropertyPagedAsync(property, pageNumber, pageSize);
 
-        return Ok(doctors);
+        return Ok(new PagedResponse<IEnumerable<DoctorGetDto>>(doctors, pageNumber, pageSize));
     }
 
     [HttpGet("sortby/{property}")]
-    public async Task<ActionResult> GetSortByAsync(string property)
+    public async Task<ActionResult> GetSortedByAsync(string? property)
     {
         var doctors = await _doctorRepository.GetSortedByPropertyAsync(property);
 
@@ -50,18 +50,14 @@ public class DoctorController : Controller
     [HttpGet("doctorId")]
     public async Task<ActionResult<DoctorGetDto?>> GetByIdAsync(int doctorId)
     {
-        DoctorGetDto doctorGetDto;
-
         try
         {
-            doctorGetDto = await _doctorRepository.GetByIdAsync(doctorId);
+            return await _doctorRepository.GetByIdAsync(doctorId);
         }
         catch (NullReferenceException exception)
         {
             return NotFound(exception.Message);
         }
-
-        return doctorGetDto;
     }
     
     [HttpPost]
